@@ -1,25 +1,42 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { baseUrl, connect } from '../api/hive'
+import { onMounted, ref } from 'vue'
+import { baseUrl, connect, shouldAutoConnect } from '../api/hive'
+import { getDefaultNodeUrl } from '../config'
 import HiveLogo from './shared/HiveLogo.vue'
 
-const url = ref(baseUrl.value || 'http://localhost:3000')
+const defaultNodeUrl = getDefaultNodeUrl()
+
+const url = ref(baseUrl.value || defaultNodeUrl)
 const error = ref('')
 const connecting = ref(false)
 
-async function onConnect() {
+async function onConnect(target = url.value) {
+  const normalizedUrl = target.trim().replace(/\/+$/, '')
+
+  if (!normalizedUrl) {
+    error.value = 'Enter a node URL'
+    return
+  }
+
+  url.value = normalizedUrl
   error.value = ''
   connecting.value = true
   try {
-    const res = await fetch(`${url.value.replace(/\/+$/, '')}/hive/status`)
+    const res = await fetch(`${normalizedUrl}/hive/status`)
     if (!res.ok) throw new Error(`Node returned ${res.status}`)
-    connect(url.value)
+    connect(normalizedUrl)
   } catch (e) {
     error.value = `Cannot reach node: ${(e as Error).message}`
   } finally {
     connecting.value = false
   }
 }
+
+onMounted(() => {
+  if (!shouldAutoConnect()) return
+
+  void onConnect(defaultNodeUrl)
+})
 </script>
 
 <template>
@@ -27,10 +44,10 @@ async function onConnect() {
     <div class="connect-box">
       <HiveLogo class="ascii-logo" />
 
-      <form @submit.prevent="onConnect">
+      <form @submit.prevent="onConnect()">
         <label>
           <span>Node URL</span>
-          <input v-model="url" type="text" placeholder="http://localhost:3000" />
+          <input v-model="url" type="text" :placeholder="defaultNodeUrl" />
         </label>
 
         <p v-if="error" class="error-msg">{{ error }}</p>

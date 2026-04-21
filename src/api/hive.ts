@@ -89,9 +89,17 @@ export interface FetchResult {
 }
 
 const STORAGE_KEY = 'hive-node-url'
+let hasAttemptedAutoConnect = !!localStorage.getItem(STORAGE_KEY)
 
 export const baseUrl = ref(localStorage.getItem(STORAGE_KEY) || '')
 export const isConnected = ref(!!localStorage.getItem(STORAGE_KEY))
+
+export function shouldAutoConnect() {
+  if (hasAttemptedAutoConnect) return false
+
+  hasAttemptedAutoConnect = true
+  return true
+}
 
 export function connect(url: string) {
   baseUrl.value = url.replace(/\/+$/, '')

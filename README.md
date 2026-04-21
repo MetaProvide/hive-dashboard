@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-The dashboard opens at [http://localhost:5173](http://localhost:5173). Enter your Hive node URL on the connect screen to get started.
+The dashboard opens at [http://localhost:80](http://localhost:80). Enter your Hive node URL on the connect screen to get started. The dashboard will automatically try to connect to the configured NODE_URL on first load.
 
 ## Scripts
 
@@ -36,14 +36,13 @@ The dashboard opens at [http://localhost:5173](http://localhost:5173). Enter you
 | `npm run dev`     | Start Vite dev server with hot reload    |
 | `npm run build`   | Type-check and build for production      |
 | `npm run preview` | Serve the production build locally       |
-
 ## API Proxy
 
-During development, Vite proxies the following paths to the Hive node at `http://localhost:3001`:
+During development, Vite proxies the following paths to `NODE_URL`:
 
 `/hive` `/ipfs` `/bzz` `/chunks` `/bytes` `/health` `/stamps` `/addresses` `/topology` `/chainstate` `/wallet` `/readiness` `/peers` `/api/v0`
 
-To change the proxy target, edit `target` in `vite.config.ts`.
+To change the proxy target in dev, set `NODE_URL` before starting Vite. In Docker, change the container `NODE_URL` environment variable and restart the container.
 
 ## Project Structure
 

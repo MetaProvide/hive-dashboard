@@ -1,27 +1,30 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-const target = 'http://localhost:3001'
+const nodeUrl = process.env.NODE_URL || 'http://localhost:3000'
 
 export default defineConfig({
   plugins: [vue()],
+  define: {
+    __NODE_URL__: JSON.stringify(nodeUrl),
+  },
   server: {
     port: 5173,
     proxy: {
-      '/hive': target,
-      '/ipfs': target,
-      '/bzz': target,
-      '/chunks': target,
-      '/bytes': target,
-      '/health': target,
-      '/stamps': target,
-      '/addresses': target,
-      '/topology': target,
-      '/chainstate': target,
-      '/wallet': target,
-      '/readiness': target,
-      '/peers': target,
-      '/api/v0': target,
+      '/hive': nodeUrl,
+      '/ipfs': nodeUrl,
+      '/bzz': nodeUrl,
+      '/chunks': nodeUrl,
+      '/bytes': nodeUrl,
+      '/health': nodeUrl,
+      '/stamps': nodeUrl,
+      '/addresses': nodeUrl,
+      '/topology': nodeUrl,
+      '/chainstate': nodeUrl,
+      '/wallet': nodeUrl,
+      '/readiness': nodeUrl,
+      '/peers': nodeUrl,
+      '/api/v0': nodeUrl,
     },
   },
 })

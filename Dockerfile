@@ -13,5 +13,9 @@ RUN pnpm run build
 
 
 FROM busybox:latest AS server
-COPY dist/ /www
+ENV NODE_URL=http://localhost:3000
+COPY --from=build /app/dist/ /www
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["httpd", "-f", "-h", "/www"]

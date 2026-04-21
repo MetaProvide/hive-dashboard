@@ -5,5 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: server
+    environment:
+      NODE_URL: http://localhost:3001
     ports:
       - "8000:80"
