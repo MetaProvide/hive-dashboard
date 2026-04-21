@@ -7,9 +7,8 @@ import RelativeTime from './shared/RelativeTime.vue'
 
 const { scope, items, loading, error, autoRefresh, refresh, toggleAutoRefresh, switchScope } = useFeeds()
 
-const scopes: Array<{ id: 'local' | 'network' | 'peers'; label: string }> = [
+const scopes: Array<{ id: 'local' | 'peers'; label: string }> = [
   { id: 'local', label: 'Local' },
-  { id: 'network', label: 'Network' },
   { id: 'peers', label: 'Peers' },
 ]
 
