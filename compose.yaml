@@ -1,0 +1,9 @@
+services:
+  hive-dashboard:
+    image: hive-dashboard:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: server
+    ports:
+      - "8000:80"
