@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-const nodeUrl = process.env.NODE_URL || 'http://localhost:3000'
+const nodeUrl = process.env.NODE_URL || 'http://localhost:4774'
 
 export default defineConfig({
   plugins: [vue()],

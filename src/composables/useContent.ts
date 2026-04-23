@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import {
   getContentList,
   storeContent,
@@ -11,6 +11,21 @@ import {
   type StoreContentRequest,
 } from '../api/hive'
 
+export interface FolderDisplayItem {
+  type: 'folder'
+  key: string
+  protocol: 'ipfs' | 'bzz'
+  prefix: string
+  items: ContentMetadata[]
+}
+
+export interface FileDisplayItem {
+  type: 'file'
+  item: ContentMetadata
+}
+
+export type DisplayItem = FolderDisplayItem | FileDisplayItem
+
 export function useContent() {
   const items = ref<ContentMetadata[]>([])
   const loading = ref(false)
@@ -19,6 +34,7 @@ export function useContent() {
   const expandedMeta = ref<ContentMetadata | null>(null)
   const expandedBlob = ref<Blob | null>(null)
   const uploading = ref<Record<string, string | null>>({})
+  const expandedFolder = ref<string | null>(null)
 
   async function refresh() {
     loading.value = true
@@ -135,5 +151,54 @@ export function useContent() {
     URL.revokeObjectURL(url)
   }
 
-  return { items, loading, error, expanded, expandedMeta, expandedBlob, uploading, refresh, upload, remove, toggleExpand, download, uploadToProvider }
+  function toggleFolder(key: string) {
+    expandedFolder.value = expandedFolder.value === key ? null : key
+  }
+
+  const displayItems = computed<DisplayItem[]>(() => {
+    const result: DisplayItem[] = []
+    const folderMap = new Map<string, FolderDisplayItem>()
+    const itemToFolderKey = new Map<string, string>()
+
+    for (const item of items.value) {
+      let folderKey: string | null = null
+      let protocol: 'ipfs' | 'bzz' | null = null
+      let prefix: string | null = null
+
+      if (item.ipfsCid && item.ipfsCid.includes('/')) {
+        prefix = item.ipfsCid.split('/')[0]
+        folderKey = `ipfs:${prefix}`
+        protocol = 'ipfs'
+      } else if (item.bzzHash && item.bzzHash.includes('/')) {
+        prefix = item.bzzHash.split('/')[0]
+        folderKey = `bzz:${prefix}`
+        protocol = 'bzz'
+      }
+
+      if (folderKey && prefix && protocol) {
+        itemToFolderKey.set(item.checksum, folderKey)
+        if (!folderMap.has(folderKey)) {
+          folderMap.set(folderKey, { type: 'folder', key: folderKey, protocol, prefix, items: [] })
+        }
+        folderMap.get(folderKey)!.items.push(item)
+      }
+    }
+
+    const seenFolders = new Set<string>()
+    for (const item of items.value) {
+      const fk = itemToFolderKey.get(item.checksum)
+      if (fk) {
+        if (!seenFolders.has(fk)) {
+          seenFolders.add(fk)
+          result.push(folderMap.get(fk)!)
+        }
+      } else {
+        result.push({ type: 'file', item })
+      }
+    }
+
+    return result
+  })
+
+  return { items, loading, error, expanded, expandedMeta, expandedBlob, expandedFolder, uploading, displayItems, refresh, upload, remove, toggleExpand, toggleFolder, download, uploadToProvider }
 }

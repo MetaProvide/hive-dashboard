@@ -12,19 +12,37 @@ const textContent = ref('')
 const hexContent = ref('')
 
 const isImage = computed(() => props.contentType.startsWith('image/'))
+const isHtml = computed(() => props.contentType.includes('text/html'))
 const isText = computed(() =>
   props.contentType.startsWith('text/') || props.contentType.includes('json'),
 )
+const srcUrlWithTrailingSlash = computed(() => {
+  if (!props.srcUrl) return props.srcUrl
+  try {
+    const url = new URL(props.srcUrl)
+    if (!url.pathname.endsWith('/')) url.pathname += '/'
+    return url.toString()
+  } catch {
+    return props.srcUrl.endsWith('/') ? props.srcUrl : props.srcUrl + '/'
+  }
+})
 
 watch(
-  () => [props.blob, props.contentType],
+  () => [props.blob, props.contentType, props.srcUrl],
   async () => {
+    console.log('[ContentPreview] watcher fired', { blobSize: props.blob?.size, contentType: props.contentType, srcUrl: props.srcUrl, isHtml: isHtml.value, isText: isText.value, isImage: isImage.value })
     if (objectUrl.value) URL.revokeObjectURL(objectUrl.value)
     objectUrl.value = ''
     textContent.value = ''
     hexContent.value = ''
 
-    if (props.srcUrl) {
+    if (isHtml.value) {
+      const text = await props.blob.text()
+      console.log('[ContentPreview] html text length', text.length)
+      textContent.value = text
+      if (props.srcUrl) objectUrl.value = props.srcUrl
+      console.log('[ContentPreview] html branch done', { textContent: textContent.value.length, objectUrl: objectUrl.value })
+    } else if (props.srcUrl) {
       objectUrl.value = props.srcUrl
     } else if (isImage.value) {
       objectUrl.value = URL.createObjectURL(props.blob)
@@ -56,7 +74,10 @@ onUnmounted(() => {
 
 <template>
   <div style="width: 100%;">
-    <a v-if="isImage" :href="srcUrl || objectUrl" :title="srcUrl" target="_blank">
+    <div v-if="isHtml && srcUrl">
+      <a :href="srcUrlWithTrailingSlash" target="_blank" style="display: inline-block; margin-bottom: 0.5rem;">Open in browser</a>
+    </div>
+    <a v-else-if="isImage" :href="srcUrl || objectUrl" :title="srcUrl" target="_blank">
       <img :src="objectUrl" alt="" style="max-width: 100%; max-height: 400px;" />
     </a>
     <pre v-else-if="isText" style="max-height: 400px; overflow: auto;">{{ textContent }}</pre>

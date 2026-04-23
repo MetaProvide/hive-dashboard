@@ -7,7 +7,7 @@ import ByteSize from './shared/ByteSize.vue'
 import RelativeTime from './shared/RelativeTime.vue'
 import ContentPreview from './shared/ContentPreview.vue'
 
-const { items, loading, error, expanded, expandedMeta, expandedBlob, uploading, refresh, upload, remove, toggleExpand, download, uploadToProvider } = useContent()
+const { items, loading, error, expanded, expandedMeta, expandedBlob, expandedFolder, uploading, displayItems, refresh, upload, remove, toggleExpand, toggleFolder, download, uploadToProvider } = useContent()
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
 
@@ -82,68 +82,153 @@ async function onDrop(e: DragEvent) {
         </tr>
       </thead>
       <tbody>
-        <template v-for="item in items" :key="item.checksum">
-          <tr>
-            <td><CopyHash :hash="item.checksum" /></td>
-            <td>{{ item.filename || '—' }}</td>
-            <td>{{ item.contentType }}</td>
-            <td><ByteSize :bytes="item.size" /></td>
-            <td><RelativeTime :timestamp="item.timestamp" /></td>
-            <td style="white-space: nowrap;">
-              <a
-                v-if="item.bzzHash"
-                class="ref-upload-btn ref-upload-btn--active"
-                :href="gatewayUrl('bzz', item.bzzHash)"
-                :title="gatewayUrl('bzz', item.bzzHash)"
-                target="_blank"
-              >bzz</a>
-              <button
-                v-else
-                class="ref-upload-btn"
-                :disabled="uploading[item.checksum] === 'bzz'"
-                @click="uploadToProvider(item.checksum, 'bzz')"
-              >
-                <span v-if="uploading[item.checksum] === 'bzz'" class="spinner"></span>
-                <template v-else>+bzz</template>
-              </button>
-              <a
-                v-if="item.ipfsCid"
-                class="ref-upload-btn ref-upload-btn--active"
-                :href="gatewayUrl('ipfs', item.ipfsCid)"
-                :title="gatewayUrl('ipfs', item.ipfsCid)"
-                target="_blank"
-              >ipfs</a>
-              <button
-                v-else
-                class="ref-upload-btn"
-                :disabled="uploading[item.checksum] === 'ipfs'"
-                @click="uploadToProvider(item.checksum, 'ipfs')"
-              >
-                <span v-if="uploading[item.checksum] === 'ipfs'" class="spinner"></span>
-                <template v-else>+ipfs</template>
-              </button>
-            </td>
-            <td style="white-space: nowrap;">
-              <a style="width: 60px; display: inline-block;" href="#" @click.prevent="toggleExpand(item.checksum)">
-                {{ expanded === item.checksum ? 'Collapse' : 'Details' }}
-              </a>
-              &nbsp;
-              <a href="#" @click.prevent="download(item.checksum, item.filename)">DL</a>
-              &nbsp;
-              <a href="#" style="color: var(--t-error);" @click.prevent="remove(item.checksum)">Del</a>
-            </td>
-          </tr>
-          <tr v-if="expanded === item.checksum && expandedMeta">
-            <td colspan="7">
-              <pre style="font-size: 0.8em; max-height: 300px; overflow: auto; margin-bottom: 0.75rem;">{{ JSON.stringify(expandedMeta, null, 2) }}</pre>
+        <template v-for="entry in displayItems" :key="entry.type === 'folder' ? entry.key : entry.item.checksum">
+          <template v-if="entry.type === 'folder'">
+            <tr class="folder-row" @click="toggleFolder(entry.key)" style="cursor: pointer;">
+              <td>📁 <CopyHash :hash="entry.prefix" /></td>
+              <td>{{ entry.items.length }} item{{ entry.items.length !== 1 ? 's' : '' }}</td>
+              <td>directory</td>
+              <td><ByteSize :bytes="entry.items.reduce((s, i) => s + i.size, 0)" /></td>
+              <td></td>
+              <td style="white-space: nowrap;">
+                <a
+                  class="ref-upload-btn ref-upload-btn--active"
+                  :href="gatewayUrl(entry.protocol, entry.prefix)"
+                  :title="gatewayUrl(entry.protocol, entry.prefix)"
+                  target="_blank"
+                >{{ entry.protocol }}</a>
+              </td>
+              <td>{{ expandedFolder === entry.key ? '▲' : '▼' }}</td>
+            </tr>
+            <template v-if="expandedFolder === entry.key">
+              <template v-for="child in entry.items" :key="child.checksum">
+                <tr class="child-row">
+                  <td style="cursor: pointer; padding-left: 1.5em;" @click="toggleExpand(child.checksum)">📄 <CopyHash :hash="child.checksum" /></td>
+                  <td>{{ child.filename || '—' }}</td>
+                  <td>{{ child.contentType }}</td>
+                  <td><ByteSize :bytes="child.size" /></td>
+                  <td><RelativeTime :timestamp="child.timestamp" /></td>
+                  <td style="white-space: nowrap;">
+                    <a
+                      v-if="child.bzzHash"
+                      class="ref-upload-btn ref-upload-btn--active"
+                      :href="gatewayUrl('bzz', child.bzzHash)"
+                      :title="gatewayUrl('bzz', child.bzzHash)"
+                      target="_blank"
+                    >bzz</a>
+                    <button
+                      v-else
+                      class="ref-upload-btn"
+                      :disabled="uploading[child.checksum] === 'bzz'"
+                      @click="uploadToProvider(child.checksum, 'bzz')"
+                    >
+                      <span v-if="uploading[child.checksum] === 'bzz'" class="spinner"></span>
+                      <template v-else>+bzz</template>
+                    </button>
+                    <a
+                      v-if="child.ipfsCid"
+                      class="ref-upload-btn ref-upload-btn--active"
+                      :href="gatewayUrl('ipfs', child.ipfsCid)"
+                      :title="gatewayUrl('ipfs', child.ipfsCid)"
+                      target="_blank"
+                    >ipfs</a>
+                    <button
+                      v-else
+                      class="ref-upload-btn"
+                      :disabled="uploading[child.checksum] === 'ipfs'"
+                      @click="uploadToProvider(child.checksum, 'ipfs')"
+                    >
+                      <span v-if="uploading[child.checksum] === 'ipfs'" class="spinner"></span>
+                      <template v-else>+ipfs</template>
+                    </button>
+                  </td>
+                  <td style="white-space: nowrap;">
+                    <a style="width: 60px; display: inline-block;" href="#" @click.prevent="toggleExpand(child.checksum)">
+                      {{ expanded === child.checksum ? 'Collapse' : 'Details' }}
+                    </a>
+                    &nbsp;
+                    <a href="#" @click.prevent="download(child.checksum, child.filename)">DL</a>
+                    &nbsp;
+                    <a href="#" style="color: var(--t-error);" @click.prevent="remove(child.checksum)">Del</a>
+                  </td>
+                </tr>
+                <tr v-if="expanded === child.checksum && expandedMeta">
+                  <td colspan="7">
+                    <pre style="font-size: 0.8em; max-height: 300px; overflow: auto; margin-bottom: 0.75rem;">{{ JSON.stringify(expandedMeta, null, 2) }}</pre>
+<ContentPreview
+                      v-if="expandedBlob"
+                      :blob="expandedBlob"
+                      :content-type="child.contentType"
+                      :src-url="child.ipfsCid ? gatewayUrl('ipfs', child.ipfsCid) : child.bzzHash ? gatewayUrl('bzz', child.bzzHash) : gatewayUrl('hive/content', child.checksum)"
+                    />
+                  </td>
+                </tr>
+              </template>
+            </template>
+          </template>
+          <template v-else>
+            <tr>
+              <td style="cursor: pointer;" @click="toggleExpand(entry.item.checksum)">📄 <CopyHash :hash="entry.item.checksum" /></td>
+              <td>{{ entry.item.filename || '—' }}</td>
+              <td>{{ entry.item.contentType }}</td>
+              <td><ByteSize :bytes="entry.item.size" /></td>
+              <td><RelativeTime :timestamp="entry.item.timestamp" /></td>
+              <td style="white-space: nowrap;">
+                <a
+                  v-if="entry.item.bzzHash"
+                  class="ref-upload-btn ref-upload-btn--active"
+                  :href="gatewayUrl('bzz', entry.item.bzzHash)"
+                  :title="gatewayUrl('bzz', entry.item.bzzHash)"
+                  target="_blank"
+                >bzz</a>
+                <button
+                  v-else
+                  class="ref-upload-btn"
+                  :disabled="uploading[entry.item.checksum] === 'bzz'"
+                  @click="uploadToProvider(entry.item.checksum, 'bzz')"
+                >
+                  <span v-if="uploading[entry.item.checksum] === 'bzz'" class="spinner"></span>
+                  <template v-else>+bzz</template>
+                </button>
+                <a
+                  v-if="entry.item.ipfsCid"
+                  class="ref-upload-btn ref-upload-btn--active"
+                  :href="gatewayUrl('ipfs', entry.item.ipfsCid)"
+                  :title="gatewayUrl('ipfs', entry.item.ipfsCid)"
+                  target="_blank"
+                >ipfs</a>
+                <button
+                  v-else
+                  class="ref-upload-btn"
+                  :disabled="uploading[entry.item.checksum] === 'ipfs'"
+                  @click="uploadToProvider(entry.item.checksum, 'ipfs')"
+                >
+                  <span v-if="uploading[entry.item.checksum] === 'ipfs'" class="spinner"></span>
+                  <template v-else>+ipfs</template>
+                </button>
+              </td>
+              <td style="white-space: nowrap;">
+                <a style="width: 60px; display: inline-block;" href="#" @click.prevent="toggleExpand(entry.item.checksum)">
+                  {{ expanded === entry.item.checksum ? 'Collapse' : 'Details' }}
+                </a>
+                &nbsp;
+                <a href="#" @click.prevent="download(entry.item.checksum, entry.item.filename)">DL</a>
+                &nbsp;
+                <a href="#" style="color: var(--t-error);" @click.prevent="remove(entry.item.checksum)">Del</a>
+              </td>
+            </tr>
+            <tr v-if="expanded === entry.item.checksum && expandedMeta">
+              <td colspan="7">
+                <pre style="font-size: 0.8em; max-height: 300px; overflow: auto; margin-bottom: 0.75rem;">{{ JSON.stringify(expandedMeta, null, 2) }}</pre>
 <ContentPreview
                   v-if="expandedBlob"
                   :blob="expandedBlob"
-                  :content-type="item.contentType"
-                  :src-url="item.ipfsCid ? gatewayUrl('ipfs', item.ipfsCid) : item.bzzHash ? gatewayUrl('bzz', item.bzzHash) : gatewayUrl('hive/content', item.checksum)"
+                  :content-type="entry.item.contentType"
+                  :src-url="entry.item.ipfsCid ? gatewayUrl('ipfs', entry.item.ipfsCid) : entry.item.bzzHash ? gatewayUrl('bzz', entry.item.bzzHash) : gatewayUrl('hive/content', entry.item.checksum)"
                 />
-            </td>
-          </tr>
+              </td>
+            </tr>
+          </template>
         </template>
       </tbody>
     </table>
@@ -222,6 +307,12 @@ async function onDrop(e: DragEvent) {
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   vertical-align: middle;
+}
+.child-row td {
+  background: rgba(255, 255, 255, 0.02);
+}
+.folder-row:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
