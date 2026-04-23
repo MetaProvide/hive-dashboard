@@ -1,9 +1,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
-import { getStatus, getPeers, getBeeHealth, getIpfsId, type NodeStatus, type PeerInfo } from '../api/hive'
+import { getStatus, getBeeHealth, getIpfsId, type NodeStatus } from '../api/hive'
 
 export function useStatus() {
   const status = ref<NodeStatus | null>(null)
-  const peers = ref<PeerInfo[]>([])
   const loading = ref(true)
   const error = ref('')
   const connected = ref(false)
@@ -13,9 +12,8 @@ export function useStatus() {
 
   async function refresh() {
     try {
-      const [s, p] = await Promise.all([getStatus(), getPeers()])
+      const s = await getStatus()
       status.value = s
-      peers.value = p.peers
       connected.value = true
       error.value = ''
     } catch (e) {
@@ -39,5 +37,5 @@ export function useStatus() {
     if (timer) clearInterval(timer)
   })
 
-  return { status, peers, loading, error, connected, beeUp, ipfsUp, refresh }
+  return { status, loading, error, connected, beeUp, ipfsUp, refresh }
 }

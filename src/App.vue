@@ -5,12 +5,11 @@ import ConnectPage from './components/ConnectPage.vue'
 import HeaderBar from './components/HeaderBar.vue'
 import SidebarNav from './components/SidebarNav.vue'
 import StatusPanel from './components/StatusPanel.vue'
-import ContentPanel from './components/ContentPanel.vue'
 import BeePanel from './components/BeePanel.vue'
+import ContentPanel from './components/ContentPanel.vue'
 import IpfsPanel from './components/IpfsPanel.vue'
 import FetchPanel from './components/FetchPanel.vue'
 import FeedsPanel from './components/FeedsPanel.vue'
-import DrivePanel from './components/DrivePanel.vue'
 
 const activePanel = ref('status')
 </script>
@@ -28,7 +27,6 @@ const activePanel = ref('status')
         <ContentPanel v-else-if="activePanel === 'content'" />
         <FetchPanel v-else-if="activePanel === 'fetch'" />
         <FeedsPanel v-else-if="activePanel === 'feeds'" />
-        <DrivePanel v-else-if="activePanel === 'drive'" />
       </main>
     </div>
   </template>

@@ -97,12 +97,31 @@ export function useContent() {
 
       const idx = items.value.findIndex((i) => i.checksum === checksum)
       if (idx !== -1) items.value[idx] = updated
+
+      if (provider === 'ipfs') {
+        await waitForBridge(checksum)
+      }
     } catch (e) {
       error.value = `${provider} upload failed: ${(e as Error).message}`
     } finally {
       const copy = { ...uploading.value }
       delete copy[checksum]
       uploading.value = copy
+    }
+  }
+
+  async function waitForBridge(checksum: string) {
+    const maxAttempts = 10
+    const delayMs = 1000
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, delayMs))
+      const meta = await getMetadata(checksum)
+      if (meta.bzzHash) {
+        const idx = items.value.findIndex((i) => i.checksum === checksum)
+        if (idx !== -1) items.value[idx] = meta
+        if (expandedMeta.value?.checksum === checksum) expandedMeta.value = meta
+        return
+      }
     }
   }
 

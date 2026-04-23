@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useContent } from '../composables/useContent'
+import { baseUrl } from '../api/hive'
 import CopyHash from './shared/CopyHash.vue'
 import ByteSize from './shared/ByteSize.vue'
 import RelativeTime from './shared/RelativeTime.vue'
@@ -9,6 +10,10 @@ import ContentPreview from './shared/ContentPreview.vue'
 const { items, loading, error, expanded, expandedMeta, expandedBlob, uploading, refresh, upload, remove, toggleExpand, download, uploadToProvider } = useContent()
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
+
+function gatewayUrl(protocol: string, id: string): string {
+  return `${baseUrl.value}/${protocol}/${id}`
+}
 
 const statusMsg = computed(() => {
   if (error.value) return { text: error.value, type: 'error' as const }
@@ -44,7 +49,7 @@ async function onDrop(e: DragEvent) {
     @drop.prevent="onDrop"
   >
     <div class="panel-header">
-      <h2>Content</h2>
+      <h2>Drive</h2>
       <div style="display: flex; gap: 0.5rem;">
         <button type="button" class="outline" @click="refresh">Refresh</button>
       </div>
@@ -85,11 +90,13 @@ async function onDrop(e: DragEvent) {
             <td><ByteSize :bytes="item.size" /></td>
             <td><RelativeTime :timestamp="item.timestamp" /></td>
             <td style="white-space: nowrap;">
-              <button
+              <a
                 v-if="item.bzzHash"
                 class="ref-upload-btn ref-upload-btn--active"
-                disabled
-              >bzz</button>
+                :href="gatewayUrl('bzz', item.bzzHash)"
+                :title="gatewayUrl('bzz', item.bzzHash)"
+                target="_blank"
+              >bzz</a>
               <button
                 v-else
                 class="ref-upload-btn"
@@ -99,11 +106,13 @@ async function onDrop(e: DragEvent) {
                 <span v-if="uploading[item.checksum] === 'bzz'" class="spinner"></span>
                 <template v-else>+bzz</template>
               </button>
-              <button
+              <a
                 v-if="item.ipfsCid"
                 class="ref-upload-btn ref-upload-btn--active"
-                disabled
-              >ipfs</button>
+                :href="gatewayUrl('ipfs', item.ipfsCid)"
+                :title="gatewayUrl('ipfs', item.ipfsCid)"
+                target="_blank"
+              >ipfs</a>
               <button
                 v-else
                 class="ref-upload-btn"
@@ -127,11 +136,12 @@ async function onDrop(e: DragEvent) {
           <tr v-if="expanded === item.checksum && expandedMeta">
             <td colspan="7">
               <pre style="font-size: 0.8em; max-height: 300px; overflow: auto; margin-bottom: 0.75rem;">{{ JSON.stringify(expandedMeta, null, 2) }}</pre>
-              <ContentPreview
-                v-if="expandedBlob"
-                :blob="expandedBlob"
-                :content-type="item.contentType"
-              />
+<ContentPreview
+                  v-if="expandedBlob"
+                  :blob="expandedBlob"
+                  :content-type="item.contentType"
+                  :src-url="item.ipfsCid ? gatewayUrl('ipfs', item.ipfsCid) : item.bzzHash ? gatewayUrl('bzz', item.bzzHash) : gatewayUrl('hive/content', item.checksum)"
+                />
             </td>
           </tr>
         </template>
@@ -185,12 +195,14 @@ async function onDrop(e: DragEvent) {
   color: var(--t-dim);
   margin-right: 0.25rem;
   transition: border-color 0.15s, color 0.15s;
+  text-decoration: none;
+  display: inline-block;
 }
 .ref-upload-btn--active {
   border-style: solid;
   border-color: var(--t-accent);
   color: var(--t-accent);
-  cursor: default;
+  cursor: pointer;
   opacity: 1;
 }
 .ref-upload-btn:hover:not(:disabled) {

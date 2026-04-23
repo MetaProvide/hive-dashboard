@@ -8,10 +8,9 @@ const panels = [
   { id: 'status', label: 'Status' },
   { id: 'bee', label: 'Bee' },
   { id: 'ipfs', label: 'IPFS' },
-  { id: 'content', label: 'Content' },
+  { id: 'content', label: 'Drive' },
   { id: 'fetch', label: 'Fetch' },
   { id: 'feeds', label: 'Feeds' },
-  { id: 'drive', label: 'Drive' },
 ]
 </script>
 

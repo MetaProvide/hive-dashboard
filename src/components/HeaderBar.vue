@@ -15,9 +15,9 @@ const { status, connected, beeUp, ipfsUp } = useStatus()
         <span class="status-dot" :class="connected ? 'online' : 'offline'"></span>
         {{ connected ? 'ONLINE' : 'OFFLINE' }}
       </span>
-      <span>peers:<strong>{{ status.connectedPeers }}</strong></span>
-      <span>stored:<strong>{{ status.storedContent }}</strong></span>
-      <CopyHash :hash="status.peerKey" :chars="8" />
+      <span>content:<strong>{{ status.contentCount }}</strong></span>
+      <span>bridged:<strong>{{ status.bridgedCount }}</strong></span>
+      <CopyHash :hash="status.nodeId" :chars="8" />
       <span v-if="beeUp !== null || ipfsUp !== null" class="sep">|</span>
       <span v-if="beeUp !== null">
         <span class="status-dot" :class="beeUp ? 'online' : 'offline'"></span>

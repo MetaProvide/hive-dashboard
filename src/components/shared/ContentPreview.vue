@@ -4,6 +4,7 @@ import { ref, watch, computed, onUnmounted } from 'vue'
 const props = defineProps<{
   blob: Blob
   contentType: string
+  srcUrl?: string
 }>()
 
 const objectUrl = ref('')
@@ -23,7 +24,9 @@ watch(
     textContent.value = ''
     hexContent.value = ''
 
-    if (isImage.value) {
+    if (props.srcUrl) {
+      objectUrl.value = props.srcUrl
+    } else if (isImage.value) {
       objectUrl.value = URL.createObjectURL(props.blob)
     } else if (isText.value) {
       const raw = await props.blob.text()
@@ -53,7 +56,9 @@ onUnmounted(() => {
 
 <template>
   <div style="width: 100%;">
-    <img v-if="isImage" :src="objectUrl" alt="" style="max-width: 100%; max-height: 400px;" />
+    <a v-if="isImage" :href="srcUrl || objectUrl" :title="srcUrl" target="_blank">
+      <img :src="objectUrl" alt="" style="max-width: 100%; max-height: 400px;" />
+    </a>
     <pre v-else-if="isText" style="max-height: 400px; overflow: auto;">{{ textContent }}</pre>
     <pre v-else style="max-height: 400px; overflow: auto; font-size: 0.8em; max-width:100%; box-sizing:border-box; white-space:pre-wrap; word-break:break-word;">{{ hexContent }}</pre>
   </div>

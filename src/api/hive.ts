@@ -2,27 +2,8 @@ import { ref } from 'vue'
 
 export interface NodeStatus {
   nodeId: string
-  peerKey: string
-  driveKey: string
-  connectedPeers: number
-  seed: string
-  storedContent: number
-}
-
-export interface PeerIdentity {
-  key: string
-  driveKey: string
-}
-
-export interface PeerInfo {
-  keyHash: string
-  connectedAt: number
-  isConnected: boolean
-}
-
-export interface PeersResponse {
-  peers: PeerInfo[]
-  count: number
+  contentCount: number
+  bridgedCount: number
 }
 
 export interface ContentMetadata {
@@ -31,6 +12,8 @@ export interface ContentMetadata {
   size: number
   filename?: string
   timestamp: number
+  lastModified?: number
+  sourcePath?: string
   ipfsCid?: string
   bzzHash?: string
 }
@@ -57,25 +40,19 @@ export interface FeedEntry {
   contentType: string
   size: number
   timestamp?: number
-  peerHash: string
 }
 
 export interface FeedResponse {
   items: FeedEntry[]
   count: number
-  scope: 'local' | 'network' | 'peers'
-}
-
-export interface ProvidersResponse {
-  providers: string[]
-  count: number
-  checksum?: string
 }
 
 export interface StoreContentRequest {
-  content: string  // base64
-  contentType: string
+  content: string
+  contentType?: string
   filename?: string
+  lastModified?: number
+  sourcePath?: string
   ipfsCid?: string
   bzzHash?: string
 }
@@ -130,14 +107,6 @@ export async function getStatus(): Promise<NodeStatus> {
   return api('/hive/status')
 }
 
-export async function getIdentity(): Promise<PeerIdentity> {
-  return api('/hive/peer')
-}
-
-export async function getPeers(): Promise<PeersResponse> {
-  return api('/hive/peers')
-}
-
 export async function getContentList(): Promise<ContentListResponse> {
   return api('/hive/list')
 }
@@ -169,7 +138,7 @@ export async function storePrivate(body: StoreContentRequest): Promise<ContentMe
   })
 }
 
-export async function deleteContent(checksum: string): Promise<{ deleted: boolean }> {
+export async function deleteContent(checksum: string): Promise<{ deleted: boolean; checksum: string }> {
   return api(`/hive/content/${checksum}`, { method: 'DELETE' })
 }
 
@@ -177,20 +146,12 @@ export async function publishContent(checksum: string): Promise<ContentMetadata>
   return api(`/hive/publish/${checksum}`, { method: 'POST' })
 }
 
-export async function unpublishContent(checksum: string): Promise<{ unpublished: boolean }> {
+export async function unpublishContent(checksum: string): Promise<{ unpublished: boolean; checksum: string }> {
   return api(`/hive/publish/${checksum}`, { method: 'DELETE', headers: {} })
 }
 
-export async function getProviders(checksum: string): Promise<ProvidersResponse> {
-  return api(`/hive/providers/${checksum}`)
-}
-
-export async function getProvidersByRef(provider: string, ref: string): Promise<ProvidersResponse> {
-  return api(`/hive/providers/${provider}/${ref}`)
-}
-
-export async function getFeed(scope: 'local' | 'network' | 'peers', limit = 20): Promise<FeedResponse> {
-  return api(`/hive/feed/${scope}?limit=${limit}`)
+export async function getFeed(limit = 20): Promise<FeedResponse> {
+  return api(`/hive/feed/local?limit=${limit}`)
 }
 
 export async function getDriveListing(path = '/'): Promise<DriveListResponse> {
@@ -227,7 +188,6 @@ export async function uploadToBee(content: Blob, filename = 'file', contentType?
     headers: {
       'content-type': ct,
       'swarm-postage-batch-id': stamp.batchID,
-      'swarm-deferred-upload': 'true',
     },
     body: content,
   })
@@ -263,7 +223,7 @@ export async function uploadToIpfs(content: Blob, filename = 'file'): Promise<st
   return data.Hash as string
 }
 
-// ── Bee API (proxied through catch-all → Bee node) ───
+// ── Bee API (proxied through catch-all → Bee node) ────
 
 export interface BeeHealth {
   status: string
