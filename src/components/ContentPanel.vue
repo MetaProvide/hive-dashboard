@@ -6,10 +6,38 @@ import CopyHash from './shared/CopyHash.vue'
 import ByteSize from './shared/ByteSize.vue'
 import RelativeTime from './shared/RelativeTime.vue'
 import ContentPreview from './shared/ContentPreview.vue'
+import { Folder, FileText, ChevronUp, ChevronDown } from 'lucide-vue-next'
 
-const { items, loading, error, expanded, expandedMeta, expandedBlob, expandedFolder, uploading, displayItems, refresh, upload, remove, toggleExpand, toggleFolder, download, uploadToProvider } = useContent()
+const {
+  items,
+  loading,
+  error,
+  notice,
+  expanded,
+  expandedMeta,
+  expandedBlob,
+  expandedFolder,
+  uploading,
+  displayItems,
+  refresh,
+  purge,
+  upload,
+  remove,
+  toggleExpand,
+  toggleFolder,
+  download,
+  uploadToProvider,
+  handleDirToBzz,
+  handlePublish,
+} = useContent()
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
+
+function confirmPurge() {
+  if (confirm('Purge all stored content, cache, refs, and the file index? This cannot be undone.')) {
+    purge()
+  }
+}
 
 function gatewayUrl(protocol: string, id: string): string {
   return `${baseUrl.value}/${protocol}/${id}`
@@ -17,6 +45,7 @@ function gatewayUrl(protocol: string, id: string): string {
 
 const statusMsg = computed(() => {
   if (error.value) return { text: error.value, type: 'error' as const }
+  if (notice.value) return { text: notice.value, type: 'ok' as const }
   const active = Object.entries(uploading.value)
   if (active.length) {
     const labels = active.map(([, p]) => p).join(', ')
@@ -52,6 +81,7 @@ async function onDrop(e: DragEvent) {
       <h2>Drive</h2>
       <div style="display: flex; gap: 0.5rem;">
         <button type="button" class="outline" @click="refresh">Refresh</button>
+        <button type="button" class="outline" style="color: var(--t-error); border-color: var(--t-error);" @click="confirmPurge">Purge</button>
       </div>
       <input ref="fileInput" type="file" multiple hidden @change="onFileSelect">
     </div>
@@ -65,7 +95,15 @@ async function onDrop(e: DragEvent) {
       <span v-else>Drop file here or click to upload</span>
     </div>
 
-    <p class="status-bar" :class="'status-bar--' + statusMsg.type">{{ statusMsg.text }}&nbsp;</p>
+    <p
+      class="status-bar"
+      :class="[
+        'status-bar--' + statusMsg.type,
+        statusMsg.type === 'ok' ? 'status-bar--ok' : '',
+      ]"
+    >
+      {{ statusMsg.text }}&nbsp;
+    </p>
 
     <p v-if="!loading && items.length === 0" class="empty-state">No content stored yet</p>
 
@@ -85,25 +123,88 @@ async function onDrop(e: DragEvent) {
         <template v-for="entry in displayItems" :key="entry.type === 'folder' ? entry.key : entry.item.checksum">
           <template v-if="entry.type === 'folder'">
             <tr class="folder-row" @click="toggleFolder(entry.key)" style="cursor: pointer;">
-              <td>📁 <CopyHash :hash="entry.prefix" /></td>
-              <td>{{ entry.items.length }} item{{ entry.items.length !== 1 ? 's' : '' }}</td>
-              <td>directory</td>
-              <td><ByteSize :bytes="entry.items.reduce((s, i) => s + i.size, 0)" /></td>
-              <td></td>
-              <td style="white-space: nowrap;">
+              <td><Folder :size="14" style="vertical-align: middle;" /> <CopyHash :hash="entry.prefix" /></td>
+              <td>{{ entry.rootItem?.filename || `${entry.items.length} item${entry.items.length !== 1 ? 's' : ''}` }}</td>
+              <td>{{ entry.rootItem?.contentType || 'directory' }}</td>
+              <td><ByteSize :bytes="entry.rootItem ? entry.rootItem.size + entry.items.reduce((s, i) => s + i.size, 0) : entry.items.reduce((s, i) => s + i.size, 0)" /></td>
+              <td><RelativeTime v-if="entry.rootItem" :timestamp="entry.rootItem.timestamp" /></td>
+              <td style="white-space: nowrap;" @click.stop>
                 <a
+                  v-if="entry.rootItem?.bzzHash"
                   class="ref-upload-btn ref-upload-btn--active"
-                  :href="gatewayUrl(entry.protocol, entry.prefix)"
-                  :title="gatewayUrl(entry.protocol, entry.prefix)"
+                  :href="gatewayUrl('bzz', entry.rootItem.bzzHash)"
+                  :title="gatewayUrl('bzz', entry.rootItem.bzzHash)"
                   target="_blank"
-                >{{ entry.protocol }}</a>
+                >bzz</a>
+                <button
+                  v-else-if="entry.rootItem"
+                  class="ref-upload-btn"
+                  type="button"
+                  :disabled="!!uploading[entry.rootItem.checksum]"
+                  @click="handleDirToBzz(entry.rootItem.checksum)"
+                >
+                  <span v-if="uploading[entry.rootItem.checksum]" class="spinner"></span>
+                  <template v-else>+bzz</template>
+                </button>
+                <a
+                  v-if="entry.rootItem?.ipfsCid"
+                  class="ref-upload-btn ref-upload-btn--active"
+                  :href="gatewayUrl('ipfs', entry.rootItem.ipfsCid)"
+                  :title="gatewayUrl('ipfs', entry.rootItem.ipfsCid)"
+                  target="_blank"
+                >ipfs</a>
+                <template v-else>
+                  <a
+                    class="ref-upload-btn ref-upload-btn--active"
+                    :href="gatewayUrl(entry.protocol, entry.prefix)"
+                    :title="gatewayUrl(entry.protocol, entry.prefix)"
+                    target="_blank"
+                  >{{ entry.protocol }}</a>
+                </template>
               </td>
-              <td>{{ expandedFolder === entry.key ? '▲' : '▼' }}</td>
+              <td style="white-space: nowrap;">
+                <template v-if="entry.rootItem">
+                  <a style="width: 60px; display: inline-block;" href="#" @click.prevent.stop="toggleExpand(entry.rootItem.checksum)">
+                    {{ expanded === entry.rootItem.checksum ? 'Collapse' : 'Details' }}
+                  </a>
+                  &nbsp;
+                  <button
+                    v-if="!entry.rootItem.manifestBzzHash"
+                    class="ref-upload-btn"
+                    type="button"
+                    :disabled="!!uploading[entry.rootItem.checksum] || !entry.rootItem.bzzHash"
+                    @click.stop="handlePublish(entry)"
+                  >
+                    <span v-if="uploading[entry.rootItem.checksum] === 'publish'" class="spinner"></span>
+                    <template v-else>+publish</template>
+                  </button>
+                  <a
+                    v-if="entry.rootItem.manifestBzzHash"
+                    class="ref-upload-btn ref-upload-btn--active"
+                    :href="gatewayUrl('bzz', entry.rootItem.manifestBzzHash) + '/'"
+                    target="_blank"
+                    @click.stop
+                  >open</a>
+                  &nbsp;
+                </template>
+                <ChevronUp v-if="expandedFolder === entry.key" :size="14" style="vertical-align: middle;" /><ChevronDown v-else :size="14" style="vertical-align: middle;" />
+              </td>
+            </tr>
+            <tr v-if="entry.rootItem && expanded === entry.rootItem.checksum && expandedMeta">
+              <td colspan="7">
+                <pre style="font-size: 0.8em; max-height: 300px; overflow: auto; margin-bottom: 0.75rem;">{{ JSON.stringify(expandedMeta, null, 2) }}</pre>
+<ContentPreview
+                  v-if="expandedBlob"
+                  :blob="expandedBlob"
+                  :content-type="entry.rootItem.contentType"
+                  :src-url="entry.rootItem.ipfsCid ? gatewayUrl('ipfs', entry.rootItem.ipfsCid) : entry.rootItem.bzzHash ? gatewayUrl('bzz', entry.rootItem.bzzHash) : gatewayUrl('hive/content', entry.rootItem.checksum)"
+                />
+              </td>
             </tr>
             <template v-if="expandedFolder === entry.key">
               <template v-for="child in entry.items" :key="child.checksum">
                 <tr class="child-row">
-                  <td style="cursor: pointer; padding-left: 1.5em;" @click="toggleExpand(child.checksum)">📄 <CopyHash :hash="child.checksum" /></td>
+                  <td style="cursor: pointer; padding-left: 1.5em;" @click="toggleExpand(child.checksum)"><FileText :size="14" style="vertical-align: middle;" /> <CopyHash :hash="child.checksum" /></td>
                   <td>{{ child.filename || '—' }}</td>
                   <td>{{ child.contentType }}</td>
                   <td><ByteSize :bytes="child.size" /></td>
@@ -168,7 +269,7 @@ async function onDrop(e: DragEvent) {
           </template>
           <template v-else>
             <tr>
-              <td style="cursor: pointer;" @click="toggleExpand(entry.item.checksum)">📄 <CopyHash :hash="entry.item.checksum" /></td>
+              <td style="cursor: pointer;" @click="toggleExpand(entry.item.checksum)"><FileText :size="14" style="vertical-align: middle;" /> <CopyHash :hash="entry.item.checksum" /></td>
               <td>{{ entry.item.filename || '—' }}</td>
               <td>{{ entry.item.contentType }}</td>
               <td><ByteSize :bytes="entry.item.size" /></td>
@@ -241,6 +342,9 @@ async function onDrop(e: DragEvent) {
   min-height: 1.4em;
   margin-bottom: 0.5rem;
   color: var(--t-dim);
+}
+.status-bar--ok {
+  color: var(--t-accent, #4caf50);
 }
 .status-bar--error {
   color: var(--t-error);

@@ -16,6 +16,7 @@ export interface ContentMetadata {
   sourcePath?: string
   ipfsCid?: string
   bzzHash?: string
+  manifestBzzHash?: string
 }
 
 export interface ContentListResponse {
@@ -55,6 +56,25 @@ export interface StoreContentRequest {
   sourcePath?: string
   ipfsCid?: string
   bzzHash?: string
+}
+
+export interface DirectoryManifestFile {
+  relPath: string
+  bzzHash: string
+  contentType?: string
+  filename?: string
+}
+
+export interface FinalizeDirectoryManifestRequest {
+  rootCid: string
+  files: DirectoryManifestFile[]
+  indexDocument?: string
+}
+
+export interface FinalizeDirectoryManifestResponse {
+  rootCid: string
+  manifestReference: string
+  fileCount: number
 }
 
 export interface FetchResult {
@@ -107,6 +127,19 @@ export async function getStatus(): Promise<NodeStatus> {
   return api('/hive/status')
 }
 
+export async function finalizeIpfsDirectoryManifest(
+  body: FinalizeDirectoryManifestRequest,
+): Promise<FinalizeDirectoryManifestResponse> {
+  return api(
+    '/hive/bridge/ipfs/directory/finalize',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  ) as Promise<FinalizeDirectoryManifestResponse>
+}
+
 export async function getContentList(): Promise<ContentListResponse> {
   return api('/hive/list')
 }
@@ -138,16 +171,16 @@ export async function storePrivate(body: StoreContentRequest): Promise<ContentMe
   })
 }
 
+export async function uploadDirToBzz(checksum: string): Promise<ContentMetadata> {
+  return api(`/hive/upload-dir-to-bzz/${checksum}`, { method: 'POST' })
+}
+
 export async function deleteContent(checksum: string): Promise<{ deleted: boolean; checksum: string }> {
   return api(`/hive/content/${checksum}`, { method: 'DELETE' })
 }
 
-export async function publishContent(checksum: string): Promise<ContentMetadata> {
-  return api(`/hive/publish/${checksum}`, { method: 'POST' })
-}
-
-export async function unpublishContent(checksum: string): Promise<{ unpublished: boolean; checksum: string }> {
-  return api(`/hive/publish/${checksum}`, { method: 'DELETE', headers: {} })
+export async function purgeStorage(): Promise<{ purged: boolean; storagePath: string }> {
+  return api('/hive/storage/purge', { method: 'POST' })
 }
 
 export async function getFeed(limit = 20): Promise<FeedResponse> {
