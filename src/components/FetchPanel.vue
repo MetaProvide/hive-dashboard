@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useProxyFetch } from '../composables/useProxyFetch'
+import { baseUrl } from '../api/hive'
 import ContentPreview from './shared/ContentPreview.vue'
 
 const { protocol, identifier, result, loading, error, execute } = useProxyFetch()
 
 const protocols = ['bzz', 'ipfs', 'chunks', 'bytes']
+
+const isHtml = computed(() => result.value?.contentType?.startsWith('text/html'))
+const openInBrowserUrl = computed(() => result.value ? `${baseUrl.value}/${protocol.value}/${identifier.value}` : '')
 </script>
 
 <template>
@@ -31,18 +36,29 @@ const protocols = ['bzz', 'ipfs', 'chunks', 'bytes']
     <p v-if="error" class="error-msg">{{ error }}</p>
 
     <article v-if="result">
-      <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
-        <span class="badge" :style="{ background: result.status < 400 ? '#4caf50' : '#f44336' }">
+      <div class="fetch-result-meta">
+        <span
+          class="badge"
+          :style="{ background: result.status < 400 ? '#4caf50' : '#f44336' }"
+        >
           {{ result.status }}
         </span>
-        <span v-if="result.cacheHeader">
-          Cache: <strong>{{ result.cacheHeader }}</strong>
+        <span
+          class="badge badge-hive-cache"
+          :title="
+            result.cacheHeader
+              ? 'x-hive-cache: ' + result.cacheHeader
+              : 'Custom headers need Access-Control-Expose-Headers: x-hive-cache (CORS) to be read by JavaScript; DevTools still shows the raw response'
+          "
+        >
+          {{ result.cacheHeader || '—' }}
         </span>
         <span>{{ result.elapsed }}ms</span>
         <span>{{ result.contentType }}</span>
         <span>{{ (result.content.size / 1024).toFixed(1) }} KB</span>
       </div>
       <ContentPreview :blob="result.content" :content-type="result.contentType" />
+      <a v-if="isHtml" :href="openInBrowserUrl" target="_blank" style="display: inline-block; margin-top: 0.5rem;">Open in browser</a>
     </article>
   </div>
 </template>

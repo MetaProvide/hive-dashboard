@@ -306,6 +306,26 @@ article {
   letter-spacing: 0.05em;
 }
 
+.fetch-result-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+/* x-hive-cache (hit | swarm | gateway) in Fetch panel */
+.badge-hive-cache {
+  border: 2px solid #c9a227;
+  color: #e6cf66;
+  background: rgba(201, 162, 39, 0.12);
+  text-transform: none;
+  letter-spacing: 0.03em;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 0.2em 0.5em;
+}
+
 .tab-bar {
   display: flex;
   gap: 0;
