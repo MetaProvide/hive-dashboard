@@ -129,26 +129,13 @@ export function useContent() {
     if (!entry.rootItem) return
     uploading.value = { ...uploading.value, [entry.rootItem.checksum]: 'publish' }
     try {
-      const files = entry.items.map((child) => {
-        const relPath = (child.ipfsCid || child.bzzHash!).slice(entry.prefix.length + 1)
-        return {
-          relPath,
-          bzzHash: child.bzzHash!,
-          contentType: child.contentType,
-          filename: child.filename,
-        }
-      })
-      const hasIndex = files.some((f) => f.relPath === 'index.html' || f.relPath === 'index.htm')
-      const res = await finalizeIpfsDirectoryManifest({
-        rootCid: entry.prefix,
-        files,
-        ...(hasIndex ? { indexDocument: files.find((f) => f.relPath === 'index.html')?.relPath || 'index.htm' } : {}),
-      })
+      const updated = await uploadDirToBzz(entry.rootItem.checksum)
+      const idx = items.value.findIndex((i) => i.checksum === entry.rootItem!.checksum)
+      if (idx !== -1) items.value[idx] = updated
+      if (expandedMeta.value?.checksum === entry.rootItem!.checksum) expandedMeta.value = updated
       await refresh()
-      const updated = items.value.find((i) => i.checksum === entry.rootItem!.checksum)
-      notice.value = `Published. Manifest: ${res.manifestReference.slice(0, 20)}… (${res.fileCount} files)`
-      if (updated?.manifestBzzHash) {
-        notice.value = `Published. Manifest: ${updated.manifestBzzHash.slice(0, 20)}… (${res.fileCount} files)`
+      if (updated.manifestBzzHash) {
+        notice.value = `Published. Manifest: ${updated.manifestBzzHash.slice(0, 20)}…`
       }
     } catch (e) {
       error.value = `Publish failed: ${(e as Error).message}`
