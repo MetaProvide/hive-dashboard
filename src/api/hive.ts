@@ -172,7 +172,7 @@ export async function storePrivate(body: StoreContentRequest): Promise<ContentMe
 }
 
 export async function uploadDirToBzz(checksum: string): Promise<ContentMetadata> {
-  return api(`/hive/upload-dir-to-bzz/${checksum}`, { method: 'POST' })
+  return api(`/hive/publish/${checksum}`, { method: 'POST' })
 }
 
 export async function deleteContent(checksum: string): Promise<{ deleted: boolean; checksum: string }> {
